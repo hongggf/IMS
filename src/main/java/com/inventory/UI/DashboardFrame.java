@@ -2,6 +2,7 @@ package com.inventory.UI;
 
 import com.inventory.Component.Sidebar;
 import com.inventory.UI.Panel.*;
+import com.inventory.service.OrderService;
 import com.inventory.service.ProductService;
 import com.inventory.service.SupplierService;
 
@@ -14,8 +15,9 @@ public class DashboardFrame extends JFrame {
     private final JPanel contentPanel = new JPanel(cardLayout);
 
     // ================= SERVICES =================
-    private final ProductService productService = new ProductService();
+    private final ProductService  productService  = new ProductService();
     private final SupplierService supplierService = new SupplierService();
+    private final OrderService    orderService    = new OrderService(productService);
 
     public DashboardFrame() {
 
@@ -29,13 +31,13 @@ public class DashboardFrame extends JFrame {
 
         // ================= PANELS =================
 
-       final DashboardPanel dashboardPanel =
-        new DashboardPanel(productService, supplierService, new Runnable() {
-            @Override
-            public void run() {
-                // optional global sync
-            }
-        });
+        final DashboardPanel dashboardPanel =
+                new DashboardPanel(productService, supplierService, new Runnable() {
+                    @Override
+                    public void run() {
+                        // optional global sync
+                    }
+                });
 
         final ProductPanel productPanel =
                 new ProductPanel(productService, new Runnable() {
@@ -46,7 +48,7 @@ public class DashboardFrame extends JFrame {
                 });
 
         final SupplierPanel supplierPanel =
-                new SupplierPanel(supplierService, new Runnable() {
+                new SupplierPanel(supplierService, orderService, new Runnable() {
                     @Override
                     public void run() {
                         dashboardPanel.refresh();
@@ -54,10 +56,12 @@ public class DashboardFrame extends JFrame {
                 });
 
         final OrderPanel orderPanel =
-                new OrderPanel(new Runnable() {
+                new OrderPanel(orderService, supplierService, productService, new Runnable() {
                     @Override
                     public void run() {
                         dashboardPanel.refresh();
+                        productPanel.refresh();
+                        supplierPanel.refresh();
                     }
                 });
 
@@ -71,10 +75,10 @@ public class DashboardFrame extends JFrame {
 
         // ================= CARD LAYOUT =================
         contentPanel.add(dashboardPanel, "dashboard");
-        contentPanel.add(productPanel, "products");
-        contentPanel.add(supplierPanel, "suppliers");
-        contentPanel.add(orderPanel, "orders");
-        contentPanel.add(reportPanel, "reports");
+        contentPanel.add(productPanel,   "products");
+        contentPanel.add(supplierPanel,  "suppliers");
+        contentPanel.add(orderPanel,     "orders");
+        contentPanel.add(reportPanel,    "reports");
 
         // ================= NAVIGATION =================
         sidebar.setNavListener(new Sidebar.NavListener() {
