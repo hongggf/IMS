@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 
 public class OrderService {
 
-    private final List<Order>   orders  = new ArrayList<>();
+    private final List<Order> orders = new ArrayList<>();
     private final ProductService productService;
     private int nextId = 1;
 
@@ -18,70 +18,211 @@ public class OrderService {
         this.productService = productService;
     }
 
-    // ── CRUD ──────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────
+    // CREATE ORDER
+    // ─────────────────────────────────────────────────────────────
 
     public Order create(int supplierId, String supplierName) {
-        Order order = new Order(nextId++, supplierId, supplierName);
+
+        Order order = new Order(
+                nextId++,
+                supplierId,
+                supplierName
+        );
+
         orders.add(order);
+
         AppEventBus.publish();
+
         return order;
     }
 
-    public void addItem(int orderId, int productId, int quantity) {
+    // ─────────────────────────────────────────────────────────────
+    // ADD ITEM
+    // ─────────────────────────────────────────────────────────────
+
+    public void addItem(
+            int orderId,
+            int productId,
+            int quantity
+    ) {
+
         Order order = getById(orderId);
-        if (order == null) return;
 
-        Product p = productService.getById(productId);
-        if (p == null) return;
+        if (order == null)
+            return;
 
-        order.addItem(new Order.Item(productId, p.getName(), quantity, p.getPrice()));
+        Product product =
+                productService.getById(productId);
+
+        if (product == null)
+            return;
+
+        order.addItem(
+                new Order.Item(
+                        productId,
+                        product.getName(),
+                        quantity,
+                        product.getPrice()
+                )
+        );
+
         AppEventBus.publish();
     }
 
-    /**
-     * Change order status.
-     * COMPLETED  → deducts stock from products.
-     * CANCELLED  → if previously COMPLETED, restores stock.
-     */
-    public void setStatus(int orderId, Order.Status newStatus) {
+    // ─────────────────────────────────────────────────────────────
+    // REMOVE ITEM
+    // ─────────────────────────────────────────────────────────────
+
+    public void removeItem(
+            int orderId,
+            int productId
+    ) {
+
         Order order = getById(orderId);
-        if (order == null) return;
 
-        Order.Status old = order.getStatus();
+        if (order == null)
+            return;
 
-        if (newStatus == Order.Status.COMPLETED && old == Order.Status.PENDING) {
-            // deduct stock
+        order.getItems().removeIf(
+                item -> item.getProductId() == productId
+        );
+
+        AppEventBus.publish();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // DELETE ORDER
+    // ─────────────────────────────────────────────────────────────
+
+    public void deleteOrder(int orderId) {
+
+        Order order = getById(orderId);
+
+        if (order == null)
+            return;
+
+        // Restore stock if completed order is deleted
+
+        if (order.getStatus() == Order.Status.COMPLETED) {
+
             for (Order.Item item : order.getItems()) {
-                Product p = productService.getById(item.getProductId());
-                if (p != null) {
-                    p.setStock(Math.max(0, p.getStock() - item.getQuantity()));
-                    productService.update(p);
+
+                Product product =
+                        productService.getById(
+                                item.getProductId()
+                        );
+
+                if (product != null) {
+
+                    product.setStock(
+                            product.getStock()
+                                    + item.getQuantity()
+                    );
+
+                    productService.update(product);
                 }
             }
-        } else if (newStatus == Order.Status.CANCELLED && old == Order.Status.COMPLETED) {
-            // restore stock
+        }
+
+        orders.remove(order);
+
+        AppEventBus.publish();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // STATUS CHANGE
+    // ─────────────────────────────────────────────────────────────
+
+    public void setStatus(
+            int orderId,
+            Order.Status newStatus
+    ) {
+
+        Order order = getById(orderId);
+
+        if (order == null)
+            return;
+
+        Order.Status oldStatus =
+                order.getStatus();
+
+        if (newStatus == Order.Status.COMPLETED
+                && oldStatus == Order.Status.PENDING) {
+
             for (Order.Item item : order.getItems()) {
-                Product p = productService.getById(item.getProductId());
-                if (p != null) {
-                    p.setStock(p.getStock() + item.getQuantity());
-                    productService.update(p);
+
+                Product product =
+                        productService.getById(
+                                item.getProductId()
+                        );
+
+                if (product != null) {
+
+                    product.setStock(
+                            Math.max(
+                                    0,
+                                    product.getStock()
+                                            - item.getQuantity()
+                            )
+                    );
+
+                    productService.update(product);
+                }
+            }
+        }
+
+        else if (newStatus == Order.Status.CANCELLED
+                && oldStatus == Order.Status.COMPLETED) {
+
+            for (Order.Item item : order.getItems()) {
+
+                Product product =
+                        productService.getById(
+                                item.getProductId()
+                        );
+
+                if (product != null) {
+
+                    product.setStock(
+                            product.getStock()
+                                    + item.getQuantity()
+                    );
+
+                    productService.update(product);
                 }
             }
         }
 
         order.setStatus(newStatus);
+
         AppEventBus.publish();
     }
 
-    // ── Queries ───────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────
+    // QUERIES
+    // ─────────────────────────────────────────────────────────────
 
-    public List<Order> getAll()                          { return new ArrayList<>(orders); }
-    public Order       getById(int id)                   {
-        return orders.stream().filter(o -> o.getId() == id).findFirst().orElse(null);
+    public List<Order> getAll() {
+        return new ArrayList<>(orders);
     }
-    public List<Order> getBySupplierId(int supplierId)   {
+
+    public Order getById(int id) {
+
         return orders.stream()
-                     .filter(o -> o.getSupplierId() == supplierId)
-                     .collect(Collectors.toList());
+                .filter(order -> order.getId() == id)
+                .findFirst()
+                .orElse(null);
+    }
+
+    public List<Order> getBySupplierId(
+            int supplierId
+    ) {
+
+        return orders.stream()
+                .filter(order ->
+                        order.getSupplierId()
+                                == supplierId)
+                .collect(Collectors.toList());
     }
 }

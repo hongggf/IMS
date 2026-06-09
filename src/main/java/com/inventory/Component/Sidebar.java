@@ -1,125 +1,122 @@
 package com.inventory.Component;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 public class Sidebar extends JPanel {
 
-    public interface NavListener {
-        void onNavigate(String screen);
-    }
-
+    public interface NavListener { void onNavigate(String screen); }
     private NavListener listener;
+    public void setNavListener(NavListener listener) { this.listener = listener; }
 
-    public void setNavListener(NavListener listener) {
-        this.listener = listener;
-    }
+    private static final Color BG = new Color(20, 20, 25);
+    private static final Color ACTIVE_BG = new Color(35, 35, 45);
+    private static final Color TEXT = new Color(170, 170, 180);
+    private static final Color ACCENT = new Color(75, 140, 250);
 
-    private static final Color BG = new Color(18, 18, 22);
-    private static final Color ACTIVE = new Color(45, 45, 55);
-    private static final Color HOVER = new Color(30, 30, 38);
-    private static final Color TEXT = new Color(160, 160, 170);
-
-    public final JButton dashboardBtn;
-    public final JButton productBtn;
-    public final JButton supplierBtn;
-    public final JButton orderBtn;
-    public final JButton reportBtn;
+    public final JButton dashboardBtn, productBtn, supplierBtn, orderBtn, reportBtn;
 
     public Sidebar() {
-
-        setPreferredSize(new Dimension(220, 0));
+        setPreferredSize(new Dimension(240, 0));
         setBackground(BG);
-        setLayout(new GridLayout(10, 1, 0, 5));
+        setLayout(new BorderLayout());
 
-        add(createTitle());
+        // 1. Top Section: Header
+        JLabel header = new JLabel("IMS SYSTEM");
+        header.setForeground(Color.WHITE);
+        header.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        header.setBorder(new EmptyBorder(30, 25, 30, 0));
+        add(header, BorderLayout.NORTH);
 
-        dashboardBtn = createBtn("Dashboard");
-        productBtn = createBtn("Products");
-        supplierBtn = createBtn("Suppliers");
-        orderBtn = createBtn("Orders");
-        reportBtn = createBtn("Reports");
+        // 2. Middle Section: Navigation
+        JPanel navGroup = new JPanel();
+        navGroup.setLayout(new BoxLayout(navGroup, BoxLayout.Y_AXIS));
+        navGroup.setOpaque(false);
 
-        add(dashboardBtn);
-        add(productBtn);
-        add(supplierBtn);
-        add(orderBtn);
-        add(reportBtn);
+        dashboardBtn = createBtn("Dashboard", "dashboard");
+        productBtn = createBtn("Products", "products");
+        supplierBtn = createBtn("Suppliers", "suppliers");
+        orderBtn = createBtn("Orders", "orders");
+        reportBtn = createBtn("Reports", "reports");
+
+        JButton[] btns = {dashboardBtn, productBtn, supplierBtn, orderBtn, reportBtn};
+        for (JButton b : btns) {
+            navGroup.add(b);
+            navGroup.add(Box.createVerticalStrut(5));
+        }
+        add(navGroup, BorderLayout.CENTER);
+
+        // 3. Bottom Section: Profile Settings
+        add(createProfileSection(), BorderLayout.SOUTH);
 
         setActive(dashboardBtn);
     }
 
-    private JLabel createTitle() {
-        JLabel lbl = new JLabel("  INVENTORY");
-        lbl.setForeground(Color.WHITE);
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        return lbl;
+    private JPanel createProfileSection() {
+        JPanel profile = new JPanel(new BorderLayout(10, 0));
+        profile.setBackground(new Color(15, 15, 20));
+        profile.setBorder(new EmptyBorder(15, 20, 15, 20));
+
+        JLabel avatar = new JLabel("AD", SwingConstants.CENTER);
+        avatar.setPreferredSize(new Dimension(40, 40));
+        avatar.setOpaque(true);
+        avatar.setBackground(ACCENT);
+        avatar.setForeground(Color.WHITE);
+        avatar.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+        JLabel name = new JLabel("<html>Admin User<br/><font color='#777777'>Settings</font></html>");
+        name.setForeground(Color.WHITE);
+        name.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+
+        profile.add(avatar, BorderLayout.WEST);
+        profile.add(name, BorderLayout.CENTER);
+        return profile;
     }
 
-    private JButton createBtn(String text) {
-
+    private JButton createBtn(String text, String cmd) {
         JButton btn = new JButton(text);
-
+        btn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btn.setMaximumSize(new Dimension(220, 45));
         btn.setFocusPainted(false);
         btn.setBorderPainted(false);
-        btn.setBackground(BG);
+        btn.setContentAreaFilled(true);
         btn.setForeground(TEXT);
         btn.setHorizontalAlignment(SwingConstants.LEFT);
-        btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setBackground(BG);
+        btn.setBorder(new EmptyBorder(0, 25, 0, 0));
 
         btn.addActionListener(e -> {
-            if (listener == null) return;
-
-            if (btn == dashboardBtn) listener.onNavigate("dashboard");
-            else if (btn == productBtn) listener.onNavigate("products");
-            else if (btn == supplierBtn) listener.onNavigate("suppliers");
-            else if (btn == orderBtn) listener.onNavigate("orders");
-            else if (btn == reportBtn) listener.onNavigate("reports");
-
+            if (listener != null) listener.onNavigate(cmd);
             setActive(btn);
         });
 
         btn.addMouseListener(new MouseAdapter() {
-            @Override
             public void mouseEntered(MouseEvent e) {
-                if (!Boolean.TRUE.equals(btn.getClientProperty("active"))) {
-                    btn.setBackground(HOVER);
-                    btn.setForeground(Color.WHITE);
-                }
+                if (!Boolean.TRUE.equals(btn.getClientProperty("active"))) btn.setForeground(Color.WHITE);
             }
-
-            @Override
             public void mouseExited(MouseEvent e) {
-                if (!Boolean.TRUE.equals(btn.getClientProperty("active"))) {
-                    btn.setBackground(BG);
-                    btn.setForeground(TEXT);
-                }
+                if (!Boolean.TRUE.equals(btn.getClientProperty("active"))) btn.setForeground(TEXT);
             }
         });
-
         return btn;
     }
 
     public void setActive(JButton active) {
-
         JButton[] all = {dashboardBtn, productBtn, supplierBtn, orderBtn, reportBtn};
-
         for (JButton b : all) {
-
             boolean isActive = (b == active);
             b.putClientProperty("active", isActive);
-
-            if (isActive) {
-                b.setBackground(ACTIVE);
-                b.setForeground(Color.WHITE);
-                b.setFont(new Font("Segoe UI", Font.BOLD, 13));
-            } else {
-                b.setBackground(BG);
-                b.setForeground(TEXT);
-                b.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-            }
+            b.setBackground(isActive ? ACTIVE_BG : BG);
+            b.setForeground(isActive ? Color.WHITE : TEXT);
+            b.setBorder(isActive ? BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 5, 0, 0, ACCENT),
+                new EmptyBorder(0, 20, 0, 0)
+            ) : new EmptyBorder(0, 25, 0, 0));
         }
     }
 }

@@ -1,33 +1,32 @@
 package com.inventory.UI.Panel;
 
-import com.inventory.model.ModernButton;
 import com.inventory.model.Order;
 import com.inventory.model.Product;
 import com.inventory.model.Supplier;
+import com.inventory.model.ModernButton;
 import com.inventory.service.OrderService;
 import com.inventory.service.ProductService;
 import com.inventory.service.SupplierService;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
 
 public class OrderPanel extends JPanel {
 
-    private final OrderService   orderService;
+    private final OrderService orderService;
     private final SupplierService supplierService;
-    private final ProductService  productService;
-    private final Runnable        onUpdate;
+    private final ProductService productService;
+    private final Runnable onUpdate;
 
-    // ── Top table: orders ─────────────────────────────────────────────
+    // ── TABLES ─────────────────────────────
     private final DefaultTableModel orderModel;
-    private final JTable            orderTable;
+    private final JTable orderTable;
 
-    // ── Bottom table: items of selected order ─────────────────────────
     private final DefaultTableModel itemModel;
-    private final JTable            itemTable;
+    private final JTable itemTable;
 
     private JTextField searchField;
 
@@ -36,199 +35,198 @@ public class OrderPanel extends JPanel {
                       ProductService productService,
                       Runnable onUpdate) {
 
-        this.orderService    = orderService;
+        this.orderService = orderService;
         this.supplierService = supplierService;
-        this.productService  = productService;
-        this.onUpdate        = onUpdate;
+        this.productService = productService;
+        this.onUpdate = onUpdate;
 
-        setLayout(new BorderLayout(10, 10));
+        setLayout(new BorderLayout(12, 12));
         setBackground(new Color(25, 25, 28));
 
-        // ── Order table ───────────────────────────────────────────────
+        // ── HEADER (modern toolbar) ─────────────────────────────
+        JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
+        topBar.setOpaque(false);
+
+        searchField = new JTextField();
+        searchField.setPreferredSize(new Dimension(180, 32));
+        searchField.setBackground(new Color(35, 35, 40));
+        searchField.setForeground(Color.WHITE);
+        searchField.setCaretColor(Color.WHITE);
+
+        searchField.addActionListener(e -> refresh());
+
+        ModernButton addOrderBtn = new ModernButton("+ Order", new Color(34, 197, 94));
+        ModernButton addItemBtn  = new ModernButton("+ Item", new Color(59, 130, 246));
+        ModernButton statusBtn   = new ModernButton("Status", new Color(99, 102, 241));
+
+        addOrderBtn.addActionListener(e -> addOrder());
+        addItemBtn.addActionListener(e -> addItemToOrder());
+        statusBtn.addActionListener(e -> changeStatus());
+
+        topBar.add(searchField);
+        topBar.add(addOrderBtn);
+        topBar.add(addItemBtn);
+        topBar.add(statusBtn);
+
+        // ── ORDER TABLE ─────────────────────────────
         orderModel = new DefaultTableModel(
-                new String[]{"Order ID", "Supplier", "Total", "Status"}, 0) {
-            @Override public boolean isCellEditable(int r, int c) { return false; }
+                new String[]{"Order ID", "Supplier", "Total", "Status"}, 0
+        ) {
+            public boolean isCellEditable(int r, int c) { return false; }
         };
+
         orderTable = new JTable(orderModel);
         styleTable(orderTable);
-        orderTable.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) refreshItems();
-        });
 
-        // Status column: colour-code the cell
+        // Status coloring
         orderTable.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
             public Component getTableCellRendererComponent(JTable t, Object v,
-                    boolean sel, boolean foc, int r, int c) {
+                                                           boolean sel, boolean foc, int r, int c) {
                 super.getTableCellRendererComponent(t, v, sel, foc, r, c);
-                String status = v == null ? "" : v.toString();
-                if ("COMPLETED".equals(status)) {
-                    setForeground(new Color(34, 197, 94));
-                } else if ("CANCELLED".equals(status)) {
-                    setForeground(new Color(239, 68, 68));
-                } else {
-                    setForeground(new Color(250, 204, 21));
-                }
-                if (sel) setBackground(new Color(55, 55, 60));
-                else     setBackground(new Color(30, 30, 35));
+
+                String s = v == null ? "" : v.toString();
+
+                if ("COMPLETED".equals(s)) setForeground(new Color(34, 197, 94));
+                else if ("CANCELLED".equals(s)) setForeground(new Color(239, 68, 68));
+                else setForeground(new Color(250, 204, 21));
+
+                setBackground(sel ? new Color(55, 55, 60) : new Color(30, 30, 35));
                 return this;
             }
+        });
+
+        orderTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) refreshItems();
         });
 
         JScrollPane orderScroll = new JScrollPane(orderTable);
         orderScroll.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(new Color(60, 60, 70)),
-                "Orders", 0, 0, null, Color.LIGHT_GRAY));
+                "Orders", 0, 0, null, Color.LIGHT_GRAY
+        ));
 
-        // ── Item table ────────────────────────────────────────────────
+        // ── ITEM TABLE ─────────────────────────────
         itemModel = new DefaultTableModel(
-                new String[]{"Product", "Qty", "Unit Price", "Subtotal"}, 0) {
-            @Override public boolean isCellEditable(int r, int c) { return false; }
+                new String[]{"Product", "Qty", "Unit Price", "Subtotal"}, 0
+        ) {
+            public boolean isCellEditable(int r, int c) { return false; }
         };
+
         itemTable = new JTable(itemModel);
         styleTable(itemTable);
 
         JScrollPane itemScroll = new JScrollPane(itemTable);
         itemScroll.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(new Color(60, 60, 70)),
-                "Order Items (select an order above)", 0, 0, null, Color.LIGHT_GRAY));
+                "Order Items", 0, 0, null, Color.LIGHT_GRAY
+        ));
 
-        // ── Toolbar ───────────────────────────────────────────────────
-        searchField = new JTextField();
-        searchField.setPreferredSize(new Dimension(180, 32));
-        searchField.addActionListener(e -> refresh());
-
-        ModernButton addBtn    = new ModernButton("+ New Order",  new Color(34, 197, 94));
-        ModernButton addItemBtn= new ModernButton("+ Add Item",   new Color(59, 130, 246));
-        ModernButton statusBtn = new ModernButton("Change Status",new Color(99, 102, 241));
-
-        addBtn.addActionListener(e -> addOrder());
-        addItemBtn.addActionListener(e -> addItemToOrder());
-        statusBtn.addActionListener(e -> changeStatus());
-
-        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        top.setOpaque(false);
-        top.add(searchField);
-        top.add(addBtn);
-        top.add(addItemBtn);
-        top.add(statusBtn);
-
-        // ── Layout: split orders (top 60%) / items (bottom 40%) ───────
+        // ── SPLIT VIEW ─────────────────────────────
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, orderScroll, itemScroll);
         split.setResizeWeight(0.6);
-        split.setBackground(new Color(25, 25, 28));
         split.setBorder(null);
+        split.setBackground(new Color(25, 25, 28));
 
-        add(top, BorderLayout.NORTH);
+        add(topBar, BorderLayout.NORTH);
         add(split, BorderLayout.CENTER);
 
         refresh();
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // ADD ORDER
-    // ─────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────
+    // CORE FUNCTIONS (UNCHANGED LOGIC)
+    // ─────────────────────────────────────────────
+
     private void addOrder() {
 
         List<Supplier> suppliers = supplierService.getAll();
         if (suppliers.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No suppliers available. Please add a supplier first.");
+            JOptionPane.showMessageDialog(this, "No suppliers available.");
             return;
         }
 
-        String[] supplierNames = suppliers.stream()
+        String[] names = suppliers.stream()
                 .map(s -> s.getId() + " – " + s.getName())
                 .toArray(String[]::new);
 
         String chosen = (String) JOptionPane.showInputDialog(
-                this, "Select Supplier:", "New Order",
+                this, "Select Supplier", "New Order",
                 JOptionPane.QUESTION_MESSAGE, null,
-                supplierNames, supplierNames[0]);
+                names, names[0]);
 
         if (chosen == null) return;
 
-        // parse "id – name"
         int supplierId = Integer.parseInt(chosen.split(" – ")[0].trim());
-        Supplier supplier = supplierService.getById(supplierId);
-        if (supplier == null) return;
+        Supplier s = supplierService.getById(supplierId);
 
-        orderService.create(supplierId, supplier.getName());
-        refresh();
-        notifyUpdate();
+        if (s != null) {
+            orderService.create(supplierId, s.getName());
+            refresh();
+            notifyUpdate();
+        }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // ADD ITEM TO SELECTED ORDER
-    // ─────────────────────────────────────────────────────────────────
     private void addItemToOrder() {
 
         int row = orderTable.getSelectedRow();
         if (row == -1) {
-            JOptionPane.showMessageDialog(this, "Select an order first.");
+            JOptionPane.showMessageDialog(this, "Select order first.");
             return;
         }
 
-        int orderId = parseOrderId(orderModel.getValueAt(row, 0).toString());
+        int orderId = parseId(orderModel.getValueAt(row, 0).toString());
         Order order = orderService.getById(orderId);
-        if (order == null) return;
 
-        if (order.getStatus() != Order.Status.PENDING) {
-            JOptionPane.showMessageDialog(this, "Can only add items to PENDING orders.");
+        if (order == null || order.getStatus() != Order.Status.PENDING) {
+            JOptionPane.showMessageDialog(this, "Only PENDING orders allowed.");
             return;
         }
 
         List<Product> products = productService.getAll();
-        if (products.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No products available.");
-            return;
-        }
 
-        String[] productLabels = products.stream()
+        String[] list = products.stream()
                 .map(p -> p.getId() + " – " + p.getName() + " ($" + p.getPrice() + ")")
                 .toArray(String[]::new);
 
-        String chosenProd = (String) JOptionPane.showInputDialog(
-                this, "Select Product:", "Add Item",
+        String chosen = (String) JOptionPane.showInputDialog(
+                this, "Select Product", "Add Item",
                 JOptionPane.QUESTION_MESSAGE, null,
-                productLabels, productLabels[0]);
+                list, list[0]);
 
-        if (chosenProd == null) return;
+        if (chosen == null) return;
 
-        int productId = Integer.parseInt(chosenProd.split(" – ")[0].trim());
+        int productId = Integer.parseInt(chosen.split(" – ")[0].trim());
 
         String qtyStr = JOptionPane.showInputDialog(this, "Quantity:");
-        if (qtyStr == null || qtyStr.trim().isEmpty()) return;
+        if (qtyStr == null) return;
 
         try {
             int qty = Integer.parseInt(qtyStr.trim());
-            if (qty <= 0) throw new NumberFormatException();
             orderService.addItem(orderId, productId, qty);
+
             refresh();
             refreshItems();
             notifyUpdate();
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Please enter a valid quantity.");
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Invalid quantity");
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // CHANGE STATUS
-    // ─────────────────────────────────────────────────────────────────
     private void changeStatus() {
 
         int row = orderTable.getSelectedRow();
         if (row == -1) return;
 
-        int orderId = parseOrderId(orderModel.getValueAt(row, 0).toString());
+        int orderId = parseId(orderModel.getValueAt(row, 0).toString());
         Order order = orderService.getById(orderId);
-        if (order == null) return;
 
-        String[] options = {"PENDING", "COMPLETED", "CANCELLED"};
+        String[] opts = {"PENDING", "COMPLETED", "CANCELLED"};
 
         String chosen = (String) JOptionPane.showInputDialog(
-                this, "Change Status", "Order Status",
+                this, "Change Status", "Status",
                 JOptionPane.QUESTION_MESSAGE, null,
-                options, order.getStatus().name());
+                opts, order.getStatus().name());
 
         if (chosen != null) {
             orderService.setStatus(orderId, Order.Status.valueOf(chosen));
@@ -237,23 +235,22 @@ public class OrderPanel extends JPanel {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // REFRESH
-    // ─────────────────────────────────────────────────────────────────
     public void refresh() {
 
-        // remember selection
-        int selectedOrderId = -1;
-        int selRow = orderTable.getSelectedRow();
-        if (selRow != -1)
-            selectedOrderId = parseOrderId(orderModel.getValueAt(selRow, 0).toString());
+        int selected = -1;
+        int row = orderTable.getSelectedRow();
+        if (row != -1)
+            selected = parseId(orderModel.getValueAt(row, 0).toString());
 
         orderModel.setRowCount(0);
+
         String q = searchField.getText().toLowerCase().trim();
 
         for (Order o : orderService.getAll()) {
-            if (!q.isEmpty() && !o.getSupplierName().toLowerCase().contains(q)
-                    && !o.getStatus().name().toLowerCase().contains(q)) continue;
+
+            if (!q.isEmpty() &&
+                    !o.getSupplierName().toLowerCase().contains(q) &&
+                    !o.getStatus().name().toLowerCase().contains(q)) continue;
 
             orderModel.addRow(new Object[]{
                     "#ORD-" + o.getId(),
@@ -263,11 +260,10 @@ public class OrderPanel extends JPanel {
             });
         }
 
-        // restore selection
-        if (selectedOrderId != -1) {
-            for (int r = 0; r < orderModel.getRowCount(); r++) {
-                if (parseOrderId(orderModel.getValueAt(r, 0).toString()) == selectedOrderId) {
-                    orderTable.setRowSelectionInterval(r, r);
+        if (selected != -1) {
+            for (int i = 0; i < orderModel.getRowCount(); i++) {
+                if (parseId(orderModel.getValueAt(i, 0).toString()) == selected) {
+                    orderTable.setRowSelectionInterval(i, i);
                     break;
                 }
             }
@@ -279,28 +275,31 @@ public class OrderPanel extends JPanel {
     private void refreshItems() {
 
         itemModel.setRowCount(0);
-        int selRow = orderTable.getSelectedRow();
-        if (selRow == -1) return;
 
-        int orderId = parseOrderId(orderModel.getValueAt(selRow, 0).toString());
+        int row = orderTable.getSelectedRow();
+        if (row == -1) return;
+
+        int orderId = parseId(orderModel.getValueAt(row, 0).toString());
         Order order = orderService.getById(orderId);
+
         if (order == null) return;
 
-        for (Order.Item item : order.getItems()) {
+        for (Order.Item i : order.getItems()) {
             itemModel.addRow(new Object[]{
-                    item.getProductName(),
-                    item.getQuantity(),
-                    String.format("$%.2f", item.getUnitPrice()),
-                    String.format("$%.2f", item.getSubtotal())
+                    i.getProductName(),
+                    i.getQuantity(),
+                    String.format("$%.2f", i.getUnitPrice()),
+                    String.format("$%.2f", i.getSubtotal())
             });
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────────────
-    private int parseOrderId(String cell) {
-        return Integer.parseInt(cell.replace("#ORD-", "").trim());
+    // ─────────────────────────────────────────────
+    // HELPERS
+    // ─────────────────────────────────────────────
+
+    private int parseId(String s) {
+        return Integer.parseInt(s.replace("#ORD-", "").trim());
     }
 
     private void styleTable(JTable t) {

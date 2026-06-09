@@ -26,15 +26,15 @@ public class ProductPanel extends JPanel {
         this.onUpdate = onUpdate;
 
         setLayout(new BorderLayout(15, 15));
-        setBackground(new Color(25, 25, 28));
-        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        setBackground(new Color(18, 18, 22));
+        setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
 
-        // ================= SEARCH =================
+        // ───────────────────────── TOP BAR ─────────────────────────
         searchField = new JTextField();
-        searchField.setPreferredSize(new Dimension(200, 32));
+        searchField.setPreferredSize(new Dimension(220, 34));
+        styleInput(searchField);
         searchField.addActionListener(e -> refresh());
 
-        // ================= CATEGORY =================
         categoryModel = new DefaultComboBoxModel<>();
         categoryModel.addElement("Electronics");
         categoryModel.addElement("Accessories");
@@ -43,45 +43,56 @@ public class ProductPanel extends JPanel {
         categoryModel.addElement("+ Add New");
 
         categoryBox = new JComboBox<>(categoryModel);
+        styleCombo(categoryBox);
 
         categoryBox.addActionListener(e -> {
             if ("+ Add New".equals(categoryBox.getSelectedItem())) {
                 String newCat = JOptionPane.showInputDialog(this, "New Category:");
-                if (newCat != null && newCat.trim().length() > 0) {
+                if (newCat != null && !newCat.trim().isEmpty()) {
                     categoryModel.insertElementAt(newCat, categoryModel.getSize() - 1);
                     categoryBox.setSelectedItem(newCat);
                 }
             }
         });
 
-        // ================= TABLE =================
-        model = new DefaultTableModel(new String[]{"ID", "Name", "Category", "Price", "Stock"}, 0);
-        table = new JTable(model);
-
-        JScrollPane scroll = new JScrollPane(table);
-
-        // ================= BUTTONS =================
         ModernButton addBtn = new ModernButton("+ Add", new Color(34, 197, 94));
         ModernButton editBtn = new ModernButton("Edit", new Color(99, 102, 241));
-        ModernButton deleteBtn = new ModernButton("Delete", new Color(220, 53, 69));
+        ModernButton deleteBtn = new ModernButton("Delete", new Color(239, 68, 68));
 
         addBtn.addActionListener(e -> addProduct());
         editBtn.addActionListener(e -> editProduct());
         deleteBtn.addActionListener(e -> deleteProduct());
 
-        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         top.setOpaque(false);
+
         top.add(searchField);
+        top.add(categoryBox);
         top.add(addBtn);
         top.add(editBtn);
         top.add(deleteBtn);
 
+        // ───────────────────────── TABLE ─────────────────────────
+        model = new DefaultTableModel(
+                new String[]{"ID", "Name", "Category", "Price", "Stock"}, 0
+        ) {
+            public boolean isCellEditable(int r, int c) { return false; }
+        };
+
+        table = new JTable(model);
+        styleTable(table);
+
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(40, 40, 50)));
+
+        // ───────────────────────── LAYOUT ─────────────────────────
         add(top, BorderLayout.NORTH);
         add(scroll, BorderLayout.CENTER);
 
         refresh();
     }
 
+    // ───────────────────────── LOGIC (UNCHANGED) ─────────────────────────
     private void addProduct() {
 
         JTextField name = new JTextField();
@@ -89,17 +100,19 @@ public class ProductPanel extends JPanel {
         JTextField stock = new JTextField();
 
         JPanel form = new JPanel(new GridLayout(0, 1));
-        form.add(new JLabel("Name"));
+        form.setBackground(new Color(30, 30, 35));
+
+        form.add(label("Name"));
         form.add(name);
-        form.add(new JLabel("Category"));
+        form.add(label("Category"));
         form.add(categoryBox);
-        form.add(new JLabel("Price"));
+        form.add(label("Price"));
         form.add(price);
-        form.add(new JLabel("Stock"));
+        form.add(label("Stock"));
         form.add(stock);
 
-        if (JOptionPane.showConfirmDialog(this, form, "Add Product", JOptionPane.OK_CANCEL_OPTION)
-                == JOptionPane.OK_OPTION) {
+        if (JOptionPane.showConfirmDialog(this, form, "Add Product",
+                JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
 
             service.add(new Product(
                     0,
@@ -128,15 +141,17 @@ public class ProductPanel extends JPanel {
         JTextField stock = new JTextField(String.valueOf(p.getStock()));
 
         JPanel form = new JPanel(new GridLayout(0, 1));
-        form.add(new JLabel("Name"));
+        form.setBackground(new Color(30, 30, 35));
+
+        form.add(label("Name"));
         form.add(name);
-        form.add(new JLabel("Price"));
+        form.add(label("Price"));
         form.add(price);
-        form.add(new JLabel("Stock"));
+        form.add(label("Stock"));
         form.add(stock);
 
-        if (JOptionPane.showConfirmDialog(this, form, "Edit Product", JOptionPane.OK_CANCEL_OPTION)
-                == JOptionPane.OK_OPTION) {
+        if (JOptionPane.showConfirmDialog(this, form, "Edit Product",
+                JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
 
             p.setName(name.getText());
             p.setPrice(Double.parseDouble(price.getText()));
@@ -166,7 +181,7 @@ public class ProductPanel extends JPanel {
 
         model.setRowCount(0);
 
-        String q = searchField.getText().toLowerCase();
+        String q = searchField.getText().toLowerCase().trim();
 
         for (Product p : service.getAll()) {
 
@@ -187,5 +202,42 @@ public class ProductPanel extends JPanel {
 
     private void notifyUpdate() {
         if (onUpdate != null) onUpdate.run();
+    }
+
+    // ───────────────────────── UI HELPERS ─────────────────────────
+
+    private void styleInput(JTextField f) {
+        f.setBackground(new Color(25, 25, 30));
+        f.setForeground(Color.WHITE);
+        f.setCaretColor(Color.WHITE);
+        f.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(45, 45, 55)),
+                BorderFactory.createEmptyBorder(6, 10, 6, 10)
+        ));
+        f.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+    }
+
+    private void styleCombo(JComboBox<?> box) {
+        box.setBackground(new Color(25, 25, 30));
+        box.setForeground(Color.WHITE);
+        box.setFocusable(false);
+    }
+
+    private void styleTable(JTable t) {
+        t.setBackground(new Color(28, 28, 34));
+        t.setForeground(Color.LIGHT_GRAY);
+        t.setGridColor(new Color(45, 45, 55));
+        t.setRowHeight(26);
+        t.setSelectionBackground(new Color(55, 55, 70));
+        t.setSelectionForeground(Color.WHITE);
+        t.getTableHeader().setBackground(new Color(35, 35, 45));
+        t.getTableHeader().setForeground(Color.WHITE);
+    }
+
+    private JLabel label(String text) {
+        JLabel l = new JLabel(text);
+        l.setForeground(new Color(180, 180, 180));
+        l.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        return l;
     }
 }
