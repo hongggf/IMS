@@ -225,4 +225,11 @@ public class OrderService {
                                 == supplierId)
                 .collect(Collectors.toList());
     }
+    // Add this to your OrderService class
+public List<Order> getActiveOrders() {
+    return orders.stream()
+            .filter(o -> o.getStatus() != Order.Status.COMPLETED 
+                      && o.getStatus() != Order.Status.CANCELLED)
+            .collect(Collectors.toList());
+}
 }

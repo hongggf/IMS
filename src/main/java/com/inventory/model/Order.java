@@ -1,5 +1,7 @@
 package com.inventory.model;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,11 +29,12 @@ public class Order {
         public double getSubtotal()    { return quantity * unitPrice; }
     }
 
-    private int         id;
-    private int         supplierId;
-    private String      supplierName;
-    private Status      status;
-    private List<Item>  items;
+    private int          id;
+    private int          supplierId;
+    private String       supplierName;
+    private Status       status;
+    private List<Item>   items;
+    private LocalDate    orderDate; // Added for display
 
     public Order(int id, int supplierId, String supplierName) {
         this.id           = id;
@@ -39,22 +42,30 @@ public class Order {
         this.supplierName = supplierName;
         this.status       = Status.PENDING;
         this.items        = new ArrayList<>();
+        this.orderDate    = LocalDate.now(); // Defaults to today
     }
 
     public void addItem(Item item) { items.add(item); }
 
-    public double getTotal() {
+    // --- FIX: Required methods for ProcurementPanel ---
+    
+    public double getTotalAmount() {
         return items.stream().mapToDouble(Item::getSubtotal).sum();
     }
 
-    // ── getters / setters ─────────────────────────────────────────────
+    public String getOrderDate() {
+        return orderDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
+    }
+
+    // --- Getters / Setters ---
     public int         getId()           { return id; }
     public int         getSupplierId()   { return supplierId; }
     public String      getSupplierName() { return supplierName; }
     public Status      getStatus()       { return status; }
     public List<Item>  getItems()        { return items; }
 
-    public void setId(int id)                   { this.id = id; }
-    public void setStatus(Status status)        { this.status = status; }
-    public void setSupplierName(String name)    { this.supplierName = name; }
+    public void setId(int id)                       { this.id = id; }
+    public void setStatus(Status status)            { this.status = status; }
+    public void setSupplierName(String name)        { this.supplierName = name; }
+    public void setOrderDate(LocalDate date)        { this.orderDate = date; }
 }

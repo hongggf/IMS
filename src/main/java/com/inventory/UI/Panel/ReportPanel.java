@@ -19,11 +19,9 @@ public class ReportPanel extends JPanel {
 
     private final ProductService service;
     private final Runnable onUpdate;
-
     private JPanel chartContainer;
 
     public ReportPanel(ProductService service, Runnable onUpdate) {
-
         this.service = service;
         this.onUpdate = onUpdate;
 
@@ -32,18 +30,14 @@ public class ReportPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         add(buildHeader(), BorderLayout.NORTH);
-
         chartContainer = new JPanel(new GridLayout(1, 2, 15, 15));
         chartContainer.setOpaque(false);
-
         add(chartContainer, BorderLayout.CENTER);
 
         refresh();
     }
 
-    // ================= HEADER =================
     private JPanel buildHeader() {
-
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
 
@@ -57,31 +51,21 @@ public class ReportPanel extends JPanel {
 
         header.add(title, BorderLayout.NORTH);
         header.add(sub, BorderLayout.SOUTH);
-
         return header;
     }
 
-    // ================= REFRESH =================
     public void refresh() {
-
         chartContainer.removeAll();
-
         chartContainer.add(createStockChart());
         chartContainer.add(createSalesChart());
-
         chartContainer.revalidate();
         chartContainer.repaint();
 
-        if (onUpdate != null) {
-            onUpdate.run();
-        }
+        if (onUpdate != null) onUpdate.run();
     }
 
-    // ================= STOCK CHART (LIVE DATA) =================
     private ChartPanel createStockChart() {
-
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
-
         List<Product> products = service.getAll();
 
         for (Product p : products) {
@@ -89,65 +73,51 @@ public class ReportPanel extends JPanel {
         }
 
         JFreeChart chart = ChartFactory.createBarChart(
-                "Stock Levels",
-                "Product",
-                "Qty",
-                dataset
-        );
+                "Current Stock Levels", "Product", "Quantity", dataset);
 
         style(chart);
 
         CategoryPlot plot = chart.getCategoryPlot();
-
         BarRenderer renderer = new BarRenderer();
         renderer.setSeriesPaint(0, new Color(99, 102, 241));
-        renderer.setBarPainter(new BarRenderer().getBarPainter());
-
         plot.setRenderer(renderer);
 
         return new ChartPanel(chart);
     }
 
-    // ================= SALES CHART =================
     private ChartPanel createSalesChart() {
-
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        List<Product> products = service.getAll();
 
-        dataset.addValue(1200, "Sales", "Jan");
-        dataset.addValue(900, "Sales", "Feb");
-        dataset.addValue(1500, "Sales", "Mar");
-        dataset.addValue(1100, "Sales", "Apr");
+        // Simulate realistic sales trend based on stock value
+        String[] months = {"Jan", "Feb", "Mar", "Apr", "May"};
+        double base = products.stream().mapToDouble(p -> p.getPrice() * p.getStock()).sum() / 10;
+
+        for (int i = 0; i < months.length; i++) {
+            dataset.addValue(base * (0.7 + Math.random() * 0.6), "Revenue", months[i]);
+        }
 
         JFreeChart chart = ChartFactory.createLineChart(
-                "Sales Trend",
-                "Month",
-                "Revenue",
-                dataset
-        );
+                "Sales Trend (Last 5 Months)", "Month", "Revenue ($)", dataset);
 
         style(chart);
 
         CategoryPlot plot = chart.getCategoryPlot();
-
         LineAndShapeRenderer renderer = new LineAndShapeRenderer();
         renderer.setSeriesPaint(0, new Color(34, 197, 94));
         renderer.setSeriesStroke(0, new BasicStroke(2.5f));
         renderer.setSeriesShapesVisible(0, true);
-        renderer.setSeriesShape(0, new Ellipse2D.Double(-3, -3, 6, 6));
-
+        renderer.setSeriesShape(0, new Ellipse2D.Double(-4, -4, 8, 8));
         plot.setRenderer(renderer);
 
         return new ChartPanel(chart);
     }
 
-    // ================= STYLE =================
     private void style(JFreeChart chart) {
-
         chart.setBackgroundPaint(new Color(18, 18, 22));
         chart.getTitle().setPaint(Color.WHITE);
 
         CategoryPlot plot = chart.getCategoryPlot();
-
         plot.setBackgroundPaint(new Color(25, 25, 30));
         plot.setRangeGridlinePaint(new Color(60, 60, 70));
         plot.setDomainGridlinesVisible(false);

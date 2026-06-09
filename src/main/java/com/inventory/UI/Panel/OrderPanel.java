@@ -20,112 +20,81 @@ public class OrderPanel extends JPanel {
     private final SupplierService supplierService;
     private final ProductService productService;
     private final Runnable onUpdate;
+    private final ActivityLogPanel logPanel;
 
-    // ── TABLES ─────────────────────────────
     private final DefaultTableModel orderModel;
     private final JTable orderTable;
-
     private final DefaultTableModel itemModel;
     private final JTable itemTable;
-
     private JTextField searchField;
 
-    public OrderPanel(OrderService orderService,
-                      SupplierService supplierService,
-                      ProductService productService,
-                      Runnable onUpdate) {
+    public OrderPanel(OrderService orderService, SupplierService supplierService,
+                      ProductService productService, Runnable onUpdate, ActivityLogPanel logPanel) {
 
         this.orderService = orderService;
         this.supplierService = supplierService;
         this.productService = productService;
         this.onUpdate = onUpdate;
+        this.logPanel = logPanel;
 
         setLayout(new BorderLayout(12, 12));
         setBackground(new Color(25, 25, 28));
 
-        // ── HEADER (modern toolbar) ─────────────────────────────
+        // Toolbar
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
         topBar.setOpaque(false);
 
         searchField = new JTextField();
-        searchField.setPreferredSize(new Dimension(180, 32));
-        searchField.setBackground(new Color(35, 35, 40));
-        searchField.setForeground(Color.WHITE);
-        searchField.setCaretColor(Color.WHITE);
+        searchField.setPreferredSize(new Dimension(200, 32));
+        styleInput(searchField);
+        searchField.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) { refresh(); }
+        });
 
-        searchField.addActionListener(e -> refresh());
+        ModernButton addOrderBtn = new ModernButton("+ New Order", new Color(34, 197, 94));
+        ModernButton addItemBtn = new ModernButton("+ Add Item", new Color(59, 130, 246));
+        ModernButton statusBtn = new ModernButton("Update Status", new Color(99, 102, 241));
 
-        ModernButton addOrderBtn = new ModernButton("+ Order", new Color(34, 197, 94));
-        ModernButton addItemBtn  = new ModernButton("+ Item", new Color(59, 130, 246));
-        ModernButton statusBtn   = new ModernButton("Status", new Color(99, 102, 241));
-
-        addOrderBtn.addActionListener(e -> addOrder());
-        addItemBtn.addActionListener(e -> addItemToOrder());
-        statusBtn.addActionListener(e -> changeStatus());
+        addOrderBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) { addOrder(); }
+        });
+        addItemBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) { addItemToOrder(); }
+        });
+        statusBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) { changeStatus(); }
+        });
 
         topBar.add(searchField);
         topBar.add(addOrderBtn);
         topBar.add(addItemBtn);
         topBar.add(statusBtn);
 
-        // ── ORDER TABLE ─────────────────────────────
-        orderModel = new DefaultTableModel(
-                new String[]{"Order ID", "Supplier", "Total", "Status"}, 0
-        ) {
+        // Order Table
+        orderModel = new DefaultTableModel(new String[]{"Order ID", "Supplier", "Total", "Status"}, 0) {
             public boolean isCellEditable(int r, int c) { return false; }
         };
-
         orderTable = new JTable(orderModel);
         styleTable(orderTable);
 
-        // Status coloring
-        orderTable.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
-            public Component getTableCellRendererComponent(JTable t, Object v,
-                                                           boolean sel, boolean foc, int r, int c) {
-                super.getTableCellRendererComponent(t, v, sel, foc, r, c);
+        orderTable.getColumnModel().getColumn(3).setCellRenderer(new StatusRenderer());
 
-                String s = v == null ? "" : v.toString();
-
-                if ("COMPLETED".equals(s)) setForeground(new Color(34, 197, 94));
-                else if ("CANCELLED".equals(s)) setForeground(new Color(239, 68, 68));
-                else setForeground(new Color(250, 204, 21));
-
-                setBackground(sel ? new Color(55, 55, 60) : new Color(30, 30, 35));
-                return this;
+        orderTable.getSelectionModel().addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+            public void valueChanged(javax.swing.event.ListSelectionEvent e) {
+                if (!e.getValueIsAdjusting()) refreshItems();
             }
         });
 
-        orderTable.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) refreshItems();
-        });
-
-        JScrollPane orderScroll = new JScrollPane(orderTable);
-        orderScroll.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(new Color(60, 60, 70)),
-                "Orders", 0, 0, null, Color.LIGHT_GRAY
-        ));
-
-        // ── ITEM TABLE ─────────────────────────────
-        itemModel = new DefaultTableModel(
-                new String[]{"Product", "Qty", "Unit Price", "Subtotal"}, 0
-        ) {
+        // Item Table
+        itemModel = new DefaultTableModel(new String[]{"Product", "Qty", "Unit Price", "Subtotal"}, 0) {
             public boolean isCellEditable(int r, int c) { return false; }
         };
-
         itemTable = new JTable(itemModel);
         styleTable(itemTable);
 
-        JScrollPane itemScroll = new JScrollPane(itemTable);
-        itemScroll.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(new Color(60, 60, 70)),
-                "Order Items", 0, 0, null, Color.LIGHT_GRAY
-        ));
-
-        // ── SPLIT VIEW ─────────────────────────────
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, orderScroll, itemScroll);
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
+                new JScrollPane(orderTable), new JScrollPane(itemTable));
         split.setResizeWeight(0.6);
-        split.setBorder(null);
-        split.setBackground(new Color(25, 25, 28));
 
         add(topBar, BorderLayout.NORTH);
         add(split, BorderLayout.CENTER);
@@ -133,44 +102,41 @@ public class OrderPanel extends JPanel {
         refresh();
     }
 
-    // ─────────────────────────────────────────────
-    // CORE FUNCTIONS (UNCHANGED LOGIC)
-    // ─────────────────────────────────────────────
-
     private void addOrder() {
-
         List<Supplier> suppliers = supplierService.getAll();
         if (suppliers.isEmpty()) {
             JOptionPane.showMessageDialog(this, "No suppliers available.");
             return;
         }
 
-        String[] names = suppliers.stream()
-                .map(s -> s.getId() + " – " + s.getName())
-                .toArray(String[]::new);
+        String[] names = new String[suppliers.size()];
+        for (int i = 0; i < suppliers.size(); i++) {
+            names[i] = suppliers.get(i).getId() + " – " + suppliers.get(i).getName();
+        }
 
-        String chosen = (String) JOptionPane.showInputDialog(
-                this, "Select Supplier", "New Order",
-                JOptionPane.QUESTION_MESSAGE, null,
-                names, names[0]);
+        String chosen = (String) JOptionPane.showInputDialog(this, "Select Supplier", 
+                "New Order", JOptionPane.QUESTION_MESSAGE, null, names, names[0]);
 
         if (chosen == null) return;
 
-        int supplierId = Integer.parseInt(chosen.split(" – ")[0].trim());
-        Supplier s = supplierService.getById(supplierId);
-
-        if (s != null) {
+        try {
+            int supplierId = Integer.parseInt(chosen.split(" – ")[0].trim());
+            Supplier s = supplierService.getById(supplierId);
             orderService.create(supplierId, s.getName());
+
             refresh();
-            notifyUpdate();
+            if (onUpdate != null) onUpdate.run();
+            if (logPanel != null) logPanel.logActivity("New Order Created", "Supplier: " + s.getName());
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Failed to create order.");
         }
     }
 
     private void addItemToOrder() {
-
         int row = orderTable.getSelectedRow();
         if (row == -1) {
-            JOptionPane.showMessageDialog(this, "Select order first.");
+            JOptionPane.showMessageDialog(this, "Please select an order first.");
             return;
         }
 
@@ -178,84 +144,88 @@ public class OrderPanel extends JPanel {
         Order order = orderService.getById(orderId);
 
         if (order == null || order.getStatus() != Order.Status.PENDING) {
-            JOptionPane.showMessageDialog(this, "Only PENDING orders allowed.");
+            JOptionPane.showMessageDialog(this, "Only PENDING orders can be modified.");
             return;
         }
 
         List<Product> products = productService.getAll();
+        if (products.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No products available.");
+            return;
+        }
 
-        String[] list = products.stream()
-                .map(p -> p.getId() + " – " + p.getName() + " ($" + p.getPrice() + ")")
-                .toArray(String[]::new);
+        String[] list = new String[products.size()];
+        for (int i = 0; i < products.size(); i++) {
+            Product p = products.get(i);
+            list[i] = p.getId() + " – " + p.getName();
+        }
 
-        String chosen = (String) JOptionPane.showInputDialog(
-                this, "Select Product", "Add Item",
-                JOptionPane.QUESTION_MESSAGE, null,
-                list, list[0]);
+        String chosen = (String) JOptionPane.showInputDialog(this, "Select Product", 
+                "Add Item", JOptionPane.QUESTION_MESSAGE, null, list, list[0]);
 
         if (chosen == null) return;
 
-        int productId = Integer.parseInt(chosen.split(" – ")[0].trim());
-
-        String qtyStr = JOptionPane.showInputDialog(this, "Quantity:");
-        if (qtyStr == null) return;
-
         try {
+            int productId = Integer.parseInt(chosen.split(" – ")[0].trim());
+            String qtyStr = JOptionPane.showInputDialog(this, "Quantity:");
+            if (qtyStr == null) return;
+
             int qty = Integer.parseInt(qtyStr.trim());
+            if (qty <= 0) throw new Exception("Quantity must be > 0");
+
             orderService.addItem(orderId, productId, qty);
 
             refresh();
             refreshItems();
-            notifyUpdate();
+            if (onUpdate != null) onUpdate.run();
+            if (logPanel != null) logPanel.logActivity("Item Added to Order", "Order #" + orderId);
 
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Invalid quantity");
+            JOptionPane.showMessageDialog(this, "Invalid input: " + ex.getMessage());
         }
     }
 
     private void changeStatus() {
-
         int row = orderTable.getSelectedRow();
         if (row == -1) return;
 
         int orderId = parseId(orderModel.getValueAt(row, 0).toString());
         Order order = orderService.getById(orderId);
+        if (order == null) return;
 
         String[] opts = {"PENDING", "COMPLETED", "CANCELLED"};
-
-        String chosen = (String) JOptionPane.showInputDialog(
-                this, "Change Status", "Status",
-                JOptionPane.QUESTION_MESSAGE, null,
-                opts, order.getStatus().name());
+        String chosen = (String) JOptionPane.showInputDialog(this, "Change Status", 
+                "Update Order Status", JOptionPane.QUESTION_MESSAGE, null, opts, order.getStatus().name());
 
         if (chosen != null) {
             orderService.setStatus(orderId, Order.Status.valueOf(chosen));
             refresh();
-            notifyUpdate();
+            if (onUpdate != null) onUpdate.run();
+            if (logPanel != null) logPanel.logActivity("Order Status Changed", "Order #" + orderId + " → " + chosen);
         }
     }
 
     public void refresh() {
-
         int selected = -1;
         int row = orderTable.getSelectedRow();
-        if (row != -1)
+        if (row != -1) {
             selected = parseId(orderModel.getValueAt(row, 0).toString());
+        }
 
         orderModel.setRowCount(0);
-
         String q = searchField.getText().toLowerCase().trim();
 
         for (Order o : orderService.getAll()) {
-
-            if (!q.isEmpty() &&
-                    !o.getSupplierName().toLowerCase().contains(q) &&
-                    !o.getStatus().name().toLowerCase().contains(q)) continue;
+            if (!q.isEmpty() && 
+                !o.getSupplierName().toLowerCase().contains(q) && 
+                !o.getStatus().name().toLowerCase().contains(q)) {
+                continue;
+            }
 
             orderModel.addRow(new Object[]{
                     "#ORD-" + o.getId(),
                     o.getSupplierName(),
-                    String.format("$%.2f", o.getTotal()),
+                    String.format("$%.2f", o.getTotalAmount()),
                     o.getStatus().name()
             });
         }
@@ -273,15 +243,12 @@ public class OrderPanel extends JPanel {
     }
 
     private void refreshItems() {
-
         itemModel.setRowCount(0);
-
         int row = orderTable.getSelectedRow();
         if (row == -1) return;
 
         int orderId = parseId(orderModel.getValueAt(row, 0).toString());
         Order order = orderService.getById(orderId);
-
         if (order == null) return;
 
         for (Order.Item i : order.getItems()) {
@@ -294,12 +261,26 @@ public class OrderPanel extends JPanel {
         }
     }
 
-    // ─────────────────────────────────────────────
-    // HELPERS
-    // ─────────────────────────────────────────────
-
     private int parseId(String s) {
-        return Integer.parseInt(s.replace("#ORD-", "").trim());
+        try {
+            return Integer.parseInt(s.replace("#ORD-", "").trim());
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    private void notifyUpdate() {
+        if (onUpdate != null) onUpdate.run();
+    }
+
+    private void styleInput(JTextField f) {
+        f.setBackground(new Color(35, 35, 40));
+        f.setForeground(Color.WHITE);
+        f.setCaretColor(Color.WHITE);
+        f.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(60, 60, 70)),
+                BorderFactory.createEmptyBorder(6, 10, 6, 10)
+        ));
     }
 
     private void styleTable(JTable t) {
@@ -310,10 +291,18 @@ public class OrderPanel extends JPanel {
         t.getTableHeader().setBackground(new Color(40, 40, 50));
         t.getTableHeader().setForeground(Color.WHITE);
         t.setSelectionBackground(new Color(55, 55, 70));
-        t.setSelectionForeground(Color.WHITE);
     }
 
-    private void notifyUpdate() {
-        if (onUpdate != null) onUpdate.run();
+    private static class StatusRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            String s = value == null ? "" : value.toString();
+            if ("COMPLETED".equals(s)) setForeground(new Color(34, 197, 94));
+            else if ("CANCELLED".equals(s)) setForeground(new Color(239, 68, 68));
+            else setForeground(new Color(250, 204, 21));
+            return this;
+        }
     }
 }

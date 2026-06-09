@@ -13,6 +13,8 @@ C:\Users\kakom\IMS\src\main\java\com\inventory\model\Order.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\model\Product.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\model\PurchaseOrder.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\model\Report.java
+C:\Users\kakom\IMS\src\main\java\com\inventory\model\shipment.java
+C:\Users\kakom\IMS\src\main\java\com\inventory\model\ShipmentService.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\model\StockMovement.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\model\Supplier.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\model\User.java
@@ -22,9 +24,15 @@ C:\Users\kakom\IMS\src\main\java\com\inventory\service\ProductServices.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\service\SupplierService.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\UI\DashboardFrame.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\UI\LoginFrame.java
+C:\Users\kakom\IMS\src\main\java\com\inventory\UI\Panel\ActivityLogPanel.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\UI\Panel\DashboardPanel.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\UI\Panel\OrderPanel.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\UI\Panel\ProductPanel.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\UI\Panel\ReportPanel.java
+C:\Users\kakom\IMS\src\main\java\com\inventory\UI\Panel\ShipmentPanel.java
+C:\Users\kakom\IMS\src\main\java\com\inventory\UI\Panel\StockPanel.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\UI\Panel\SupplierPanel.java
+C:\Users\kakom\IMS\src\main\java\com\inventory\UI\Panel\SystemSettingsPanel.java
 C:\Users\kakom\IMS\src\main\java\com\inventory\UI\ReportPanel.java
+C:\Users\kakom\IMS\src\main\java\com\inventory\UI\TableUtils.java
+C:\Users\kakom\IMS\src\main\java\com\inventory\UI\UITheme.java
